@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(RoutingFlagExt), "Routing Flag Extended", "1.0.2", "Kalico")]
+[assembly: MelonInfo(typeof(RoutingFlagExt), "Routing Flag Extended", PluginInfo.PLUGIN_VERSION, "Kalico")]
 [assembly: MelonGame("TraipseWare", "Peaks of Yore")]
 
 public class RoutingFlagExt : MelonMod
