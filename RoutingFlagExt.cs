@@ -33,8 +33,8 @@ public class RoutingFlagExt : MelonMod
         prefCategory = MelonPreferences.CreateCategory("RoutingFlagExtended");
         prefCategory.SetFilePath(Path.Combine(MelonEnvironment.UserDataDirectory, "RoutingFlagExt.cfg"));
 
-        prefCategory.CreateEntry<string>("CreateKey", KeyCode.H.ToString());
-        prefCategory.CreateEntry<string>("SwitchKey", KeyCode.J.ToString());
+        prefCategory.CreateEntry<string>("CreateKey", createFlagKey.ToString());
+        prefCategory.CreateEntry<string>("SwitchKey", switchFlagKey.ToString());
 
         if (prefCategory.HasEntry("CreateKey"))
         {
