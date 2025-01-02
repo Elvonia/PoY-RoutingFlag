@@ -1,0 +1,30 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.9.34622.214
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PoY-RoutingFlag", "PoY-RoutingFlag.csproj", "{AF0C5CA5-97F1-493B-B311-F98D973700EC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug-BepInEx|Any CPU = Debug-BepInEx|Any CPU
+		Debug-MelonLoader|Any CPU = Debug-MelonLoader|Any CPU
+		Release-BepInEx|Any CPU = Release-BepInEx|Any CPU
+		Release-MelonLoader|Any CPU = Release-MelonLoader|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{AF0C5CA5-97F1-493B-B311-F98D973700EC}.Debug-BepInEx|Any CPU.ActiveCfg = Debug-BepInEx|Any CPU
+		{AF0C5CA5-97F1-493B-B311-F98D973700EC}.Debug-MelonLoader|Any CPU.ActiveCfg = Debug-MelonLoader|Any CPU
+		{AF0C5CA5-97F1-493B-B311-F98D973700EC}.Debug-MelonLoader|Any CPU.Build.0 = Debug-MelonLoader|Any CPU
+		{AF0C5CA5-97F1-493B-B311-F98D973700EC}.Release-BepInEx|Any CPU.ActiveCfg = Release-BepInEx|Any CPU
+		{AF0C5CA5-97F1-493B-B311-F98D973700EC}.Release-BepInEx|Any CPU.Build.0 = Release-BepInEx|Any CPU
+		{AF0C5CA5-97F1-493B-B311-F98D973700EC}.Release-MelonLoader|Any CPU.ActiveCfg = Release-MelonLoader|Any CPU
+		{AF0C5CA5-97F1-493B-B311-F98D973700EC}.Release-MelonLoader|Any CPU.Build.0 = Release-MelonLoader|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {6F203B4F-8703-4030-A441-A08DE2FA70A2}
+	EndGlobalSection
+EndGlobal

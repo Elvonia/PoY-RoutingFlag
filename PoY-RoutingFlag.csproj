@@ -1,0 +1,72 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net472</TargetFramework>
+		<Platform>Any CPU</Platform>
+		<Version>1.0</Version>
+		<AssemblyName>RoutingFlagExt</AssemblyName>
+		<RootNamespace>RoutingFlagExt</RootNamespace>
+		<Configurations>Debug-BepInEx;Release-BepInEx;Debug-MelonLoader;Release-MelonLoader</Configurations>
+		<Configuration Condition="'$(Configuration)' == ''">Debug-BepInEx</Configuration>
+		<IntermediateOutputPath>obj/$(Configuration)</IntermediateOutputPath>
+		<OutputPath>bin/$(Configuration.ToLower())/</OutputPath>
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="$(Configuration.StartsWith('Debug-'))">
+		<DebugType>full</DebugType>
+		<DebugSymbols>true</DebugSymbols>
+		<Optimize>false</Optimize>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="$(Configuration.StartsWith('Release-'))">
+		<DebugType>none</DebugType>
+		<DebugSymbols>false</DebugSymbols>
+		<Optimize>true</Optimize>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="$(Configuration.EndsWith('-BepInEx'))">
+		<DefineConstants>BEPINEX</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="$(Configuration.EndsWith('-MelonLoader'))">
+		<DefineConstants>MELONLOADER</DefineConstants>
+	</PropertyGroup>
+
+	<ItemGroup Condition="$(Configuration.EndsWith('-BepInEx'))">
+		<PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
+		<PackageReference Include="BepInEx.Core" Version="5.*" />
+		<PackageReference Include="BepInEx.PluginInfoProps" Version="1.*" />
+	</ItemGroup>
+
+	<ItemGroup Condition="$(Configuration.EndsWith('-MelonLoader'))">
+		<PackageReference Include="LavaGang.MelonLoader" Version="0.6.6" />
+		<PackageReference Include="HarmonyX" Version="2.10.2" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="UnityEngine.Modules" Version="2019.4.36" PrivateAssets="all" />
+	</ItemGroup>
+
+	<ItemGroup Condition="'$(OS)' == 'Unix'">
+		<PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Reference Include="Assembly-CSharp">
+	    <HintPath>F:\SteamLibrary\steamapps\common\Peaks of Yore\Peaks of Yore_Data\Managed\Assembly-CSharp.dll</HintPath>
+	  </Reference>
+	</ItemGroup>
+
+	<Target Name="CopyPackageAssembliesToSubFolder" AfterTargets="ResolveReferences">
+		<ItemGroup>
+			<ReferenceCopyLocalPaths Condition="'%(ReferenceCopyLocalPaths.NuGetPackageId)' != ''" Update="$(ReferenceCopyLocalPaths)" DestinationSubDirectory="libs/" />
+		</ItemGroup>
+	</Target>
+
+	<Target Name="GeneratePluginVersion" BeforeTargets="BeforeCompile" Condition="$(Configuration.EndsWith('-MelonLoader'))">
+		<WriteLinesToFile File="$(IntermediateOutputPath)PluginInfo.cs" Lines="public static class PluginInfo { public const string PLUGIN_VERSION = &quot;$(Version)&quot;%3B }" Overwrite="true" />
+		<ItemGroup>
+			<Compile Include="$(IntermediateOutputPath)PluginInfo.cs" />
+		</ItemGroup>
+	</Target>
+</Project>
