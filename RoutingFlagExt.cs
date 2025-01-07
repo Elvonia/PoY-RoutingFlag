@@ -1,31 +1,76 @@
-﻿using System.Collections.Generic;
+﻿using HarmonyLib;
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+
+
 
 #if BEPINEX
 
 using BepInEx;
+using BepInEx.Configuration;
 
 [BepInPlugin("com.github.Kaden5480.poy-better-routing-flag", "BetterRoutingFlag", PluginInfo.PLUGIN_VERSION)]
-    public class Plugin : BaseUnityPlugin {
-        public void Awake() {
-            foreach (string sceneName in validScenes) {
-                Rotation rotation = new Rotation(
-                    Config.Bind(sceneName, "rotY", 0f),
-                    Config.Bind(sceneName, "rotW", 0f),
-                    Config.Bind(sceneName, "rotationY", 0f)
-                );
+    public class RoutingFlagExt : BaseUnityPlugin {
 
-                rotations.Add(sceneName, rotation);
-            }
+    private ConfigFile configFile;
+    private ConfigEntry<string> createFlagKeyConfig;
+    private ConfigEntry<string> switchFlagKeyConfig;
+    private ConfigEntry<string> sceneFlagsEntry;
 
-            Harmony.CreateAndPatchAll(typeof(Plugin.PatchRoutingFlagRestore));
-            Harmony.CreateAndPatchAll(typeof(Plugin.PatchRoutingFlagSave));
+    private void Awake()
+    {
+        RoutingFlagLogger.Log("Initializing BetterRoutingFlag for BepInEx...");
+        instance = this;
 
-            // Remove falling rocks
-            Harmony.CreateAndPatchAll(typeof(Patches.PatchFallingRock));
-            Harmony.CreateAndPatchAll(typeof(Patches.PatchIceFall));
-        }
+        configFile = new ConfigFile(Path.Combine(Paths.ConfigPath, "BetterRoutingFlag.cfg"), true);
+
+        createFlagKeyConfig = configFile.Bind("Keybinds", "CreateKey", "H", "Key to create a routing flag.");
+        switchFlagKeyConfig = configFile.Bind("Keybinds", "SwitchKey", "J", "Key to switch routing flags.");
+
+        createFlagKey = (KeyCode)System.Enum.Parse(typeof(KeyCode), createFlagKeyConfig.Value);
+        switchFlagKey = (KeyCode)System.Enum.Parse(typeof(KeyCode), switchFlagKeyConfig.Value);
+
+        Harmony.CreateAndPatchAll(typeof(SetRoutingFlagPositionPatch));
+        Harmony.CreateAndPatchAll(typeof(UpdateRoutingFlagPatch));
+
+        SceneManager.sceneLoaded += OnSceneLoaded;
+        SceneManager.sceneUnloaded += OnSceneUnloaded;
+    }
+
+    public void OnApplicationQuit()
+    {
+        SaveFlags();
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    public void OnDestroy()
+    {
+        SaveFlags();
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    public void OnDisable()
+    {
+        SaveFlags();
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    public void Update()
+    {
+        CommonUpdate();
+    }
+
+    public void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        CommonSceneLoad(scene.name);
+    }
+
+    public void OnSceneUnloaded(Scene scene)
+    {
+        CommonSceneUnload(scene.name);
+    }
 
 #elif MELONLOADER
 
@@ -37,9 +82,12 @@ using MelonLoader.Utils;
 
 public class RoutingFlagExt : MelonMod
 {
+    private MelonPreferences_Category prefCategory;
+    private MelonPreferences_Entry<string> sceneFlagsEntry;
+
     public override void OnInitializeMelon()
     {
-        Logger.Log("Initializing...");
+        RoutingFlagLogger.Log("Initializing...");
 
         instance = this;
 
@@ -62,16 +110,60 @@ public class RoutingFlagExt : MelonMod
 
     public override void OnSceneWasLoaded(int buildIndex, string sceneName)
     {
-        Logger.Log($"Scene Loaded: {sceneName}");
+        CommonSceneLoad(sceneName);
+    }
+
+
+    public override void OnSceneWasUnloaded(int buildIndex, string sceneName)
+    {
+        CommonSceneUnload(sceneName);
+    }
+
+    public override void OnUpdate()
+    {
+        CommonUpdate();
+    }
+
+#endif
+
+    public static RoutingFlagExt instance { get; private set; }
+
+    public Dictionary<string, RoutingFlagPosition> flags = new Dictionary<string, RoutingFlagPosition>();
+    private Transform routingFlagTransform;
+
+    public string currentFlagKey = string.Empty;
+    private int flagCounter = 0;
+
+    private KeyCode createFlagKey = KeyCode.H;
+    private KeyCode switchFlagKey = KeyCode.J;
+
+    public void CommonSceneLoad(string sceneName)
+    {
+        RoutingFlagLogger.Log($"Scene Loaded: {sceneName}");
 
         flags.Clear();
         currentFlagKey = string.Empty;
         flagCounter = 0;
 
-        if (!prefCategory.HasEntry($"{sceneName}_Flags"))
+        string configKey = $"{sceneName}_Flags";
+
+#if MELONLOADER
+
+        if (!prefCategory.HasEntry(configKey))
         {
-            sceneFlagsEntry = prefCategory.CreateEntry<string>($"{sceneName}_Flags", string.Empty);
+            sceneFlagsEntry = prefCategory.CreateEntry<string>(configKey, string.Empty);
         }
+
+#elif BEPINEX
+
+        string configGroup = "Scene.Flags";
+
+        if (!configFile.ContainsKey(new ConfigDefinition(configGroup, configKey)))
+        {
+            sceneFlagsEntry = configFile.Bind(configGroup, configKey, string.Empty);
+        }
+
+#endif
 
         InitializeReferences();
         LoadFlags();
@@ -83,16 +175,14 @@ public class RoutingFlagExt : MelonMod
         }
     }
 
-
-    public override void OnSceneWasUnloaded(int buildIndex, string sceneName)
+    public void CommonSceneUnload(string sceneName)
     {
         SaveFlags();
-        Logger.Log($"Scene Unloaded: {sceneName}, flags saved.");
+        RoutingFlagLogger.Log($"Scene Unloaded: {sceneName}, flags saved.");
     }
 
-    public override void OnUpdate()
+    private void CommonUpdate()
     {
-        //CommonUpdate();
         if (Input.GetKeyDown(createFlagKey))
         {
             CreateFlag();
@@ -104,63 +194,17 @@ public class RoutingFlagExt : MelonMod
         }
     }
 
-#endif
-
-    public static RoutingFlagExt instance { get; private set; }
-
-    private MelonPreferences_Category prefCategory;
-    private MelonPreferences_Entry<string> sceneFlagsEntry;
-
-    public Dictionary<string, RoutingFlagPosition> flags = new Dictionary<string, RoutingFlagPosition>();
-    private Transform routingFlagTransform;
-
-    public string currentFlagKey = string.Empty;
-    private int flagCounter = 0;
-
-    private KeyCode createFlagKey = KeyCode.H;
-    private KeyCode switchFlagKey = KeyCode.J;
-
-    private string[] validScenes = new string[] {
-            "Peak_1_GreenhornNEW", "Peak_2_PaltryNEW", "Peak_3_OldMill", "Peak_3_GrayGullyNEW",
-            "Peak_LighthouseNew", "Peak_4_OldManOfSjorNEW", "Peak_5_GiantsShelfNEW", "Peak_8_EvergreensEndNEW",
-            "Peak_9_TheTwinsNEW", "Peak_6_OldGroveSkelf", "Peak_7_HangmansLeapNEW", "Peak_13_LandsEndNEW",
-            "Peak_19_OldLangr", "Peak_14_Cavern", "Peak_16_ThreeSeaStacks", "Peak_10_WaltersCragNEW",
-            "Peak_15_TheGreatCrevice", "Peak_17_RainyPeak", "Peak_18_FallingBoulders", "Peak_11_WutheringCrestNEW",
-
-            "Boulder_1_OldWalkersBoulder", "Boulder_2_JotunnsThumb", "Boulder_3_OldSkerry", "Boulder_4_TheHamarrStone",
-            "Boulder_5_GiantsNose", "Boulder_6_WaltersBoulder", "Boulder_7_SunderedSons", "Boulder_8_OldWealdsBoulder",
-            "Boulder_9_LeaningSpire", "Boulder_10_Cromlech",
-
-            "Tind_1_WalkersPillar", "Tind_3_GreatGaol", "Tind_2_Eldenhorn",
-            "Tind_4_StHaelga", "Tind_5_YmirsShadow",
-
-            "Category4_1_FrozenWaterfall", "Category4_2_SolemnTempest",
-
-            "Alps_1_TrainingTower", "Alps_2_BalancingBoulder", "Alps_3_SeaArch",
-            "Alps_4_SunfullSpire", "Alps_5_Tree", "Alps_6_Treppenwald",
-            "Alps_7_Castle", "Alps_8_SeaSideTraining", "Alps_9_IvoryGranites",
-            "Alps_10_Rekkja", "Alps_11_Quietude", "Alps_12_Overlook",
-
-            "Alps2_1_Waterfall", "Alps2_2_Dam",
-            "Alps2_3_Dunderhorn", "Alps2_4_ElfenbenSpires",
-            "Alps2_5_WelkinPass",
-
-            "Alps3_1_SeigrCraeg", "Alps3_2_UllrsGate",
-            "Alps3_3_GreatSilf", "Alps3_4_ToweringVisir",
-            "Alps3_5_EldrisWall", "Alps3_6_MountMhorgorm",
-        };
-
     private void InitializeReferences()
     {
         RoutingFlag routingFlagInstance = GameObject.FindObjectOfType<RoutingFlag>();
         if (routingFlagInstance != null && routingFlagInstance.routingFlagTransform != null)
         {
             routingFlagTransform = routingFlagInstance.routingFlagTransform;
-            Logger.Log("RoutingFlag transform successfully found!");
+            RoutingFlagLogger.Log("RoutingFlag transform successfully found!");
         }
         else
         {
-            Logger.Warning("RoutingFlag instance or transform not found!");
+            RoutingFlagLogger.Warning("RoutingFlag instance or transform not found!");
         }
     }
 
@@ -169,12 +213,12 @@ public class RoutingFlagExt : MelonMod
         if (flags.ContainsKey(key))
         {
             flags[key] = flag;
-            Logger.Log($"Updated existing flag: {key}");
+            RoutingFlagLogger.Log($"Updated existing flag: {key}");
         }
         else
         {
             flags.Add(key, flag);
-            Logger.Log($"Added new flag: {key}");
+            RoutingFlagLogger.Log($"Added new flag: {key}");
         }
 
         currentFlagKey = key;
@@ -197,7 +241,7 @@ public class RoutingFlagExt : MelonMod
         }
 
         flagCounter = highestFlagNumber;
-        Logger.Log($"Flag counter adjusted to: {flagCounter}");
+        RoutingFlagLogger.Log($"Flag counter adjusted to: {flagCounter}");
     }
 
     private void ApplyFlag(RoutingFlagPosition flag)
@@ -210,14 +254,11 @@ public class RoutingFlagExt : MelonMod
             routingFlagTransform.position = flag.Position;
             routingFlagTransform.rotation = Quaternion.Euler(flag.Rotation);
 
-            //playerCameraHolder.rotation = new Quaternion(0f, flag.CameraHolderRotationY, 0f, flag.CameraHolderRotationW);
-            //cameraLook.rotationY = flag.CameraLookRotationY;
-
-            Logger.Log($"Applied flag: {currentFlagKey}");
+            RoutingFlagLogger.Log($"Applied flag: {currentFlagKey}");
         }
         else
         {
-            Logger.Warning("RoutingFlag transform is null while trying to load flag.");
+            RoutingFlagLogger.Warning("RoutingFlag transform is null while trying to load flag.");
         }
     }
 
@@ -225,7 +266,7 @@ public class RoutingFlagExt : MelonMod
     {
         if (routingFlagTransform == null)
         {
-            Logger.Warning("Cannot create a flag, RoutingFlag transform is null.");
+            RoutingFlagLogger.Warning("Cannot create a flag, RoutingFlag transform is null.");
             return;
         }
 
@@ -246,7 +287,7 @@ public class RoutingFlagExt : MelonMod
         }
 
         currentFlagKey = key;
-        Logger.Log($"Created new flag: {key}");
+        RoutingFlagLogger.Log($"Created new flag: {key}");
     }
 
 
@@ -266,12 +307,21 @@ public class RoutingFlagExt : MelonMod
                 flags = flagData.ToDictionary();
                 flagCounter = flags.Count;
 
-                Logger.Log($"Loaded {flags.Count} flags from sceneFlagsEntry: {sceneFlagsEntry.DisplayName}");
+#if MELONLOADER
+
+                RoutingFlagLogger.Log($"Loaded {flags.Count} flags from sceneFlagsEntry: {sceneFlagsEntry.DisplayName}");
+
+#elif BEPINEX
+
+                RoutingFlagLogger.Log($"Loaded {flags.Count} flags from sceneFlagsEntry: {sceneFlagsEntry.Definition.Key}");
+
+#endif
+
             }
         }
         catch (System.Exception ex)
         {
-            Logger.Error($"Failed to load flags: {ex.Message}");
+            RoutingFlagLogger.Error($"Failed to load flags: {ex.Message}");
         }
     }
 
@@ -283,14 +333,27 @@ public class RoutingFlagExt : MelonMod
             flagData.FromDictionary(flags);
 
             string json = JsonUtility.ToJson(flagData);
+
             sceneFlagsEntry.Value = json;
+
+#if MELONLOADER
+
             prefCategory.SaveToFile();
 
-            Logger.Log($"Flags saved to sceneFlagsEntry: {sceneFlagsEntry.DisplayName}");
+            RoutingFlagLogger.Log($"Flags saved to sceneFlagsEntry: {sceneFlagsEntry.DisplayName}");
+
+#elif BEPINEX
+
+            configFile.Save();
+
+            RoutingFlagLogger.Log($"Flags saved to sceneFlagsEntry: {sceneFlagsEntry.Definition.Key}");
+
+#endif
+
         }
         catch (System.Exception ex)
         {
-            Logger.Error($"Failed to save flags: {ex.Message}");
+            RoutingFlagLogger.Error($"Failed to save flags: {ex.Message}");
         }
     }
 
@@ -298,7 +361,7 @@ public class RoutingFlagExt : MelonMod
     {
         if (flags.Count == 0)
         {
-            Logger.Warning("No routing flags to switch.");
+            RoutingFlagLogger.Warning("No routing flags to switch.");
             return;
         }
 
@@ -308,6 +371,6 @@ public class RoutingFlagExt : MelonMod
 
         currentFlagKey = keys[currentIndex];
         ApplyFlag(flags[currentFlagKey]);
-        Logger.Log($"Switched to flag: {currentFlagKey}");
+        RoutingFlagLogger.Log($"Switched to flag: {currentFlagKey}");
     }
 }

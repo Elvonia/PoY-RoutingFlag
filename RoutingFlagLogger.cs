@@ -7,7 +7,7 @@ using MelonLoader;
 using BepInEx.Logging;
 #endif
 
-public static class Logger
+public static class RoutingFlagLogger
 {
     public static void Log(string message, LogType logType = LogType.Info)
     {
@@ -53,7 +53,7 @@ public static class Logger
 
 #elif BEPINEX
 
-        ManualLogSource logger = BepInEx.Logging.Logger.CreateLogSource("CustomLogger");
+        ManualLogSource logger = Logger.CreateLogSource("RoutingFlagExt");
         switch (logType)
         {
             case LogType.Info:

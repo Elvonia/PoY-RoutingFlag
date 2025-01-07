@@ -32,7 +32,7 @@ public static class SetRoutingFlagPositionPatch
                 RoutingFlagExt.instance.flags.ContainsKey(RoutingFlagExt.instance.currentFlagKey))
             {
                 RoutingFlagExt.instance.flags[RoutingFlagExt.instance.currentFlagKey] = flag;
-                Logger.Log($"Updated existing flag: {RoutingFlagExt.instance.currentFlagKey}");
+                RoutingFlagLogger.Log($"Updated existing flag: {RoutingFlagExt.instance.currentFlagKey}");
             }
             else
             {
@@ -40,12 +40,12 @@ public static class SetRoutingFlagPositionPatch
                 RoutingFlagExt.instance.flags[key] = flag;
                 RoutingFlagExt.instance.currentFlagKey = key;
 
-                Logger.Log($"Created new flag: {key}");
+                RoutingFlagLogger.Log($"Created new flag: {key}");
             }
         }
         else
         {
-            Logger.Warning("RoutingFlag instance or transform is null!");
+            RoutingFlagLogger.Warning("RoutingFlag instance or transform is null!");
         }
     }
 }
@@ -71,7 +71,6 @@ public static class UpdateRoutingFlagPatch
             || playerCameraHolder == null
         )
         {
-            Logger.Log($"Routing flag instance or camera components not found while attempt prefix patch.");
             return;
         }
 
