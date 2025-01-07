@@ -35,7 +35,6 @@
 	<ItemGroup Condition="$(Configuration.EndsWith('-BepInEx'))">
 		<PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
 		<PackageReference Include="BepInEx.Core" Version="5.*" />
-		<PackageReference Include="BepInEx.PluginInfoProps" Version="1.*" />
 	</ItemGroup>
 
 	<ItemGroup Condition="$(Configuration.EndsWith('-MelonLoader'))">
